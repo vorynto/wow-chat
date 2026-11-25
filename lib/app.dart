@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'features/stealth/stealth_gate.dart';
+import 'features/auth/auth_gate.dart';
 
 /// Root widget. Shows the decoy calculator unless the app was opened via the secret dial
 /// code (or the user has just unlocked). A correct passcode reveals the real app.
@@ -13,7 +14,8 @@ class WowChatApp extends StatelessWidget {
       title: 'Calculator', // decoy title, shown in recents if FLAG_SECURE is off
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: openedViaSecretCode ? const _Home() : const DecoyCalculator(),
+      home: openedViaSecretCode ? const AuthGate() : const DecoyCalculator(),
+      // After decoy unlock or secret-code entry, AuthGate routes to sign-in / onboarding / home.
     );
   }
 }
@@ -45,7 +47,7 @@ class _DecoyCalculatorState extends State<DecoyCalculator> {
     final ok = await StealthGate.instance.unlockFromDecoy(_display);
     if (ok && mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const _Home()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
     } else {
       // Behave like a real calculator on a wrong code so nothing is given away.
@@ -89,15 +91,3 @@ class _DecoyCalculatorState extends State<DecoyCalculator> {
   }
 }
 
-/// Placeholder for the real app shell (conversations list, calls, settings).
-/// Wire go_router + the chat/calls/privacy features here.
-class _Home extends StatelessWidget {
-  const _Home();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('wow-chat')),
-      body: const Center(child: Text('Chats, calls & privacy settings go here.')),
-    );
-  }
-}
