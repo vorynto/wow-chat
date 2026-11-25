@@ -1,0 +1,25 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+*.g.dart
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.keystore
+*.jks
+
+# Secrets / env (inject via --dart-define, never commit)
+.env
+*.secret
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
