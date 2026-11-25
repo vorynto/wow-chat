@@ -45,15 +45,34 @@ flutter run \
   --dart-define=ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"}]'
 ```
 
-Add `SECRET_DIAL_CODE` to `BuildConfig` in `android/app/build.gradle` so the native receiver
-can read it:
+Wire the secret code and the iconless/dev-icon toggle into `android/app/build.gradle`. The
+native receiver reads `SECRET_DIAL_CODE` from `BuildConfig`; the manifest reads the two
+placeholders:
 ```gradle
-android.defaultConfig {
-    buildConfigField "String", "SECRET_DIAL_CODE",
-        "\"${project.findProperty('SECRET_DIAL_CODE') ?: '7469'}\""
+android {
+    buildFeatures { buildConfig true }
+    defaultConfig {
+        def secretCode = project.findProperty('SECRET_DIAL_CODE') ?: '7469'
+        buildConfigField "String", "SECRET_DIAL_CODE", "\"${secretCode}\""
+        // Manifest placeholders:
+        manifestPlaceholders = [
+            // host for the *#*#<code>#*#* SECRET_CODE intent-filter
+            secretDialCode : secretCode,
+            // false in release => NO launcher icon. Pass -PshowLauncherIcon=true for dev.
+            showLauncherIcon: (project.findProperty('showLauncherIcon') ?: 'false')
+        ]
+    }
 }
-buildFeatures { buildConfig true }
 ```
+
+Release build is iconless. For a dev build you can open from the drawer:
+```bash
+flutter build apk --debug -PshowLauncherIcon=true --dart-define=...
+```
+or always open via `adb shell am start -n com.wowchat/.MainActivity`.
+
+> Read `docs/STEALTH.md` first: the stock-dialer code path is reliable only on Android ≤ 9.
+> On Android 10+ it's restricted; robust entry there needs the default-dialer approach.
 
 ## 5. Build the APK (sideload)
 ```bash

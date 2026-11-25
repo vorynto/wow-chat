@@ -2,92 +2,63 @@ import 'package:flutter/material.dart';
 import 'features/stealth/stealth_gate.dart';
 import 'features/auth/auth_gate.dart';
 
-/// Root widget. Shows the decoy calculator unless the app was opened via the secret dial
-/// code (or the user has just unlocked). A correct passcode reveals the real app.
+/// Root widget. The app has no launcher icon and is reached only via the secret dial code
+/// (or a dev launcher). On open it locks behind biometrics/PIN, then routes to the app.
 class WowChatApp extends StatelessWidget {
-  const WowChatApp({super.key, required this.openedViaSecretCode});
-  final bool openedViaSecretCode;
+  const WowChatApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Calculator', // decoy title, shown in recents if FLAG_SECURE is off
+      title: 'wow-chat',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: openedViaSecretCode ? const AuthGate() : const DecoyCalculator(),
-      // After decoy unlock or secret-code entry, AuthGate routes to sign-in / onboarding / home.
+      home: const AppLockGate(),
     );
   }
 }
 
-/// A working-looking calculator that doubles as the lock screen. Typing the secret passcode
-/// and pressing "=" unlocks the real app instead of computing.
-class DecoyCalculator extends StatefulWidget {
-  const DecoyCalculator({super.key});
+/// Requires biometric / device-credential unlock before revealing anything. This is the
+/// second line of defense after the app being hidden; a found, unlocked phone still can't
+/// open wow-chat without the user's biometric or PIN.
+class AppLockGate extends StatefulWidget {
+  const AppLockGate({super.key});
   @override
-  State<DecoyCalculator> createState() => _DecoyCalculatorState();
+  State<AppLockGate> createState() => _AppLockGateState();
 }
 
-class _DecoyCalculatorState extends State<DecoyCalculator> {
-  String _display = '0';
+class _AppLockGateState extends State<AppLockGate> {
+  bool _unlocked = false;
+  bool _tried = false;
 
-  void _tap(String k) {
-    setState(() {
-      if (k == 'C') {
-        _display = '0';
-      } else if (k == '=') {
-        _tryUnlock();
-      } else {
-        _display = _display == '0' ? k : _display + k;
-      }
-    });
+  @override
+  void initState() {
+    super.initState();
+    _unlock();
   }
 
-  Future<void> _tryUnlock() async {
-    final ok = await StealthGate.instance.unlockFromDecoy(_display);
-    if (ok && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AuthGate()),
-      );
-    } else {
-      // Behave like a real calculator on a wrong code so nothing is given away.
-      setState(() => _display = '0');
-    }
+  Future<void> _unlock() async {
+    final ok = await StealthGate.instance.authenticate();
+    if (mounted) setState(() { _unlocked = ok; _tried = true; });
   }
 
   @override
   Widget build(BuildContext context) {
-    const keys = ['7','8','9','C','4','5','6','=','1','2','3','0'];
+    if (_unlocked) return const AuthGate();
     return Scaffold(
-      body: SafeArea(
+      body: Center(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Container(
-                alignment: Alignment.bottomRight,
-                padding: const EdgeInsets.all(24),
-                child: Text(_display, style: const TextStyle(fontSize: 56)),
-              ),
-            ),
-            GridView.count(
-              crossAxisCount: 4,
-              shrinkWrap: true,
-              childAspectRatio: 1.4,
-              children: [
-                for (final k in keys)
-                  Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: FilledButton.tonal(
-                      onPressed: () => _tap(k),
-                      child: Text(k, style: const TextStyle(fontSize: 22)),
-                    ),
-                  ),
-              ],
-            ),
+            const Icon(Icons.lock_outline, size: 48),
+            const SizedBox(height: 16),
+            Text(_tried ? 'Locked' : 'Unlocking…'),
+            const SizedBox(height: 16),
+            if (_tried)
+              FilledButton(onPressed: _unlock, child: const Text('Unlock')),
           ],
         ),
       ),
     );
   }
 }
-

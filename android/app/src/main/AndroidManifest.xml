@@ -7,34 +7,37 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Catch the secret dial code typed in the system dialer. -->
+    <!-- Legacy dial-code path (Android <= 9 reliable; deprecated on 10+). -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
+    <!-- No android:label/icon that advertises a messenger; the app has NO launcher icon. -->
     <application
-        android:label="Calculator"
-        android:icon="@mipmap/ic_decoy"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
 
-        <!-- Single Flutter activity. It is NOT itself a launcher; the alias below is. -->
+        <!-- The ONLY activity. It has NO LAUNCHER intent-filter, so it never appears in the
+             app drawer. It is started explicitly by the dial-code receiver (or, in dev builds,
+             by the optional DevLauncher alias below, or `adb shell am start`). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:excludeFromRecents="true"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"/>
 
-        <!-- DECOY launcher: what shows in the app drawer. Looks like a calculator. -->
+        <!-- DEV-ONLY visible icon. Disabled in release (manifestPlaceholder showLauncherIcon=false)
+             so production ships with zero icon. Lets you open the app during development. -->
         <activity-alias
-            android:name=".DecoyLauncher"
+            android:name=".DevLauncher"
             android:targetActivity=".MainActivity"
-            android:label="Calculator"
-            android:icon="@mipmap/ic_decoy"
-            android:enabled="true"
+            android:label="@string/app_name"
+            android:enabled="${showLauncherIcon}"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -42,25 +45,16 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- REAL launcher alias, disabled by default. Can be enabled at runtime if the user
-             wants a normal visible icon instead of the decoy. -->
-        <activity-alias
-            android:name=".RealLauncher"
-            android:targetActivity=".MainActivity"
-            android:label="wow-chat"
-            android:icon="@mipmap/ic_launcher"
-            android:enabled="false"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity-alias>
-
-        <!-- Secret dial-code receiver: dialing *#*#7469#*#* in the phone app opens wow-chat. -->
+        <!-- Secret dial-code receiver. Two entry mechanisms for max device coverage:
+             1) SECRET_CODE: dial *#*#<code>#*#* (reliable on Android <= 8/9; system-only after).
+             2) NEW_OUTGOING_CALL: dial the code as a number + call (deprecated on Android 10+). -->
         <receiver
             android:name=".SecretCodeReceiver"
             android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SECRET_CODE"/>
+                <data android:scheme="android_secret_code" android:host="${secretDialCode}"/>
+            </intent-filter>
             <intent-filter android:priority="999">
                 <action android:name="android.intent.action.NEW_OUTGOING_CALL"/>
             </intent-filter>

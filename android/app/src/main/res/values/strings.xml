@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown only in Settings > Apps (an iconless app has no drawer label). Rename to taste;
+         avoid impersonating a real system component. -->
+    <string name="app_name">wow-chat</string>
+</resources>

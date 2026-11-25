@@ -15,8 +15,9 @@ audio/video calls over the internet (so calls never touch — or block — the c
 
 | Requested feature | Reality | What we build |
 |---|---|---|
-| Hidden from the app list | Hiding a launcher icon is **blocked on Android 10+** for normal apps. Fully invisible only via sideloaded APK; **Google Play bans it**. | A **decoy launcher** (app shows up as e.g. "Calculator"); the real chat UI is unlocked by a secret code. |
-| Open via dial-pad code | Android only. A `NEW_OUTGOING_CALL` receiver can catch a secret code like `*#*#7469#*#*` typed in the **real phone dialer** and launch the app. iOS cannot do this. | A `SecretCodeReceiver` (see `android/`). |
+| Hidden from the app list | **Iconless** app (no `LAUNCHER` activity) → no drawer icon on any Android version. Still shows in *Settings → Apps* (unavoidable without root). | Ship with no launcher activity; dev-only `DevLauncher` alias behind a build flag. |
+| Open via dial-pad code | Android only. `*#*#<code>#*#*` (`SECRET_CODE`) or dialing the code (`NEW_OUTGOING_CALL`). **Reliable on Android ≤ 9; restricted/blocked on 10+** (anti-stalkerware). iOS cannot do this. | `SecretCodeReceiver` handles both; default-dialer path documented for modern Android. See `docs/STEALTH.md`. |
+| Second lock after opening | A found phone shouldn't reveal chats. | Biometric / device-credential `AppLockGate` on every open. |
 | Carrier doesn't detect the call / "I'm on another call" | **Automatic.** Calls are VoIP/WebRTC over data. The carrier never sees a call, the cellular line stays free, incoming regular calls still ring. No evasion needed. | WebRTC + DTLS-SRTP, signaling over Supabase Realtime. |
 | Highly secure, no data leaks | The core of the app. | E2E encryption (libsignal Double Ratchet), ciphertext-only backend, encrypted-at-rest local DB, strict RLS, app-lock, panic wipe. |
 | iOS | Cannot hide the app or register dial codes. | Out of scope for stealth; a normal private iOS client could be added later. |
@@ -30,8 +31,9 @@ secret-launch behavior, and doing it anyway gets the developer account terminate
 
 ```
 ┌─────────────────────────────── Android device ───────────────────────────────┐
-│  Decoy launcher (Calculator)  ──secret code──▶  Real wow-chat UI (Flutter)    │
-│  Secret dial code receiver    ──*#*#code#*#*─▶  (launches app)                 │
+│  (no launcher icon)                                                            │
+│  Secret dial code receiver  ──*#*#code#*#*─▶ MainActivity ─▶ biometric lock ─▶ │
+│                                              Real wow-chat UI (Flutter)        │
 │                                                                               │
 │  Flutter app                                                                  │
 │   ├─ Crypto: libsignal (X3DH + Double Ratchet)  — private keys never leave    │
@@ -72,7 +74,7 @@ lib/features/auth/     Sign-in, device registration, key publishing
 lib/features/chat/     Conversations, messages, media
 lib/features/calls/    WebRTC audio/video
 lib/features/privacy/  Privacy settings model + enforcement
-lib/features/stealth/  Decoy lock screen + secret-code gate
+lib/features/stealth/  Secret-code bridge, FLAG_SECURE, biometric app-lock
 lib/features/tenant/   Tenant context
 android/               Native: secret dial-code receiver, decoy launcher, FLAG_SECURE
 docs/                  Threat model, build & deploy guide

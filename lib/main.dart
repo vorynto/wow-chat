@@ -17,8 +17,5 @@ Future<void> main() async {
     await SupabaseService.init();
   }
 
-  // Did the user arrive via the secret dial code? If so, skip the decoy.
-  final viaSecret = await StealthGate.instance.openedViaSecretCode();
-
-  runApp(ProviderScope(child: WowChatApp(openedViaSecretCode: viaSecret)));
+  runApp(const ProviderScope(child: WowChatApp()));
 }

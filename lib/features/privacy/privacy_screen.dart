@@ -15,7 +15,6 @@ class PrivacyScreen extends ConsumerStatefulWidget {
 
 class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
   PrivacySettings? _s;
-  bool _decoyLauncher = true;
 
   @override
   void initState() {
@@ -107,14 +106,11 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   value: s.appLock,
                   onChanged: (v) => _update(s.copyWith(appLock: v)),
                 ),
-                SwitchListTile(
-                  title: const Text('Disguise as Calculator'),
-                  subtitle: const Text('Hide the real icon behind a decoy launcher'),
-                  value: _decoyLauncher,
-                  onChanged: (v) async {
-                    setState(() => _decoyLauncher = v);
-                    await StealthGate.instance.setDisguise(v);
-                  },
+                ListTile(
+                  leading: const Icon(Icons.dialpad),
+                  title: const Text('App is hidden'),
+                  subtitle: const Text('No launcher icon. Open by dialing your secret code.'),
+                  trailing: const Icon(Icons.check_circle, color: Colors.tealAccent),
                 ),
                 const _Section('Account'),
                 ListTile(
