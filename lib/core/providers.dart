@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase/supabase_service.dart';
 import '../features/auth/auth_service.dart';
 import '../features/privacy/privacy_settings.dart';
+import '../features/chat/chat_repository.dart';
 
 final supabaseServiceProvider = Provider((_) => SupabaseService.instance);
 
@@ -14,6 +15,9 @@ final authServiceProvider =
 final authStateProvider = StreamProvider<AuthState>(
   (ref) => ref.watch(authServiceProvider).authChanges,
 );
+
+final chatRepositoryProvider =
+    Provider((ref) => ChatRepository(ref.watch(supabaseServiceProvider)));
 
 final privacyRepositoryProvider =
     Provider((ref) => PrivacyRepository(ref.watch(supabaseServiceProvider)));

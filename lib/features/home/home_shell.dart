@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/providers.dart';
 import '../privacy/privacy_screen.dart';
+import '../chat/models.dart';
+import '../chat/new_chat_screen.dart';
 
 /// Main app shell once signed in + onboarded. Chats / Calls / Settings.
 class HomeShell extends ConsumerStatefulWidget {
@@ -36,17 +39,43 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 }
 
-class _ChatsTab extends StatelessWidget {
+class _ChatsTab extends ConsumerWidget {
   const _ChatsTab();
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Chats')),
-        body: const Center(child: Text('Conversations list — next build step.')),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {},
-          child: const Icon(Icons.edit),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(chatRepositoryProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Chats')),
+      body: FutureBuilder<List<Conversation>>(
+        future: repo.listConversations(),
+        builder: (context, snap) {
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final convs = snap.data!;
+          if (convs.isEmpty) {
+            return const Center(child: Text('No conversations yet. Tap + to start one.'));
+          }
+          return ListView.builder(
+            itemCount: convs.length,
+            itemBuilder: (_, i) => ListTile(
+              leading: const CircleAvatar(child: Icon(Icons.lock)),
+              title: Text(convs[i].isGroup ? 'Group' : 'Direct chat'),
+              subtitle: Text('Encrypted • ${convs[i].createdAt.toLocal()}'),
+              // Opening a conversation needs the other member's device; resolved via NewChat
+              // for now. A conversation->member lookup will replace this in the next step.
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const NewChatScreen()),
         ),
-      );
+        child: const Icon(Icons.edit),
+      ),
+    );
+  }
 }
 
 class _CallsTab extends StatelessWidget {
