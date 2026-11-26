@@ -27,6 +27,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Android SDK platform 36 (plugins compile against it)
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" || true
+
       - name: Fill Flutter/Android scaffolding (keeps our files)
         run: flutter create --platforms=android --org com.wowchat --project-name wow_chat .
 
