@@ -1,4 +1,4 @@
-/// Plain data models for conversations and (decrypted) messages.
+// Plain data models for conversations and (decrypted) messages.
 
 class Conversation {
   const Conversation({
