@@ -30,6 +30,18 @@ jobs:
       - name: Fill Flutter/Android scaffolding (keeps our files)
         run: flutter create --platforms=android --org com.wowchat --project-name wow_chat .
 
+      - name: Pin Android SDK versions (plugins need compileSdk 35)
+        run: |
+          APP=android/app/build.gradle.kts
+          [ -f "$APP" ] || APP=android/app/build.gradle
+          echo "Patching $APP"
+          sed -i -E 's/compileSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.compileSdkVersion/compileSdk = 35/' "$APP"
+          sed -i -E 's/targetSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.targetSdkVersion/targetSdk = 35/' "$APP"
+          sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$APP"
+          grep -E 'compileSdk|targetSdk|minSdk' "$APP" || true
+          # Remove the default sample test that references a non-existent MyApp/material_ui.
+          rm -f test/widget_test.dart
+
       - name: Pub get
         run: flutter pub get
 

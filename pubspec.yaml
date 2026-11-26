@@ -27,6 +27,10 @@ dependencies:
   # Calls
   flutter_webrtc: ^0.12.1
 
+  # Media & document sharing
+  file_picker: ^8.1.2
+  open_filex: ^4.5.0
+
   # Privacy enforcement
   flutter_windowmanager_plus: ^1.0.1  # FLAG_SECURE (block screenshots/recents)
 

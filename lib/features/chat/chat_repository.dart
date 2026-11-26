@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/crypto/crypto_engine.dart';
+import '../../core/crypto/e2e_service.dart';
 import '../../core/supabase/supabase_service.dart';
 import 'models.dart';
 
@@ -94,6 +97,70 @@ class ChatRepository {
           : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
     }).select('id').single();
     _ownPlaintext[inserted['id'] as String] = text;
+  }
+
+  static const _mediaBucket = 'media';
+
+  /// Encrypt a file client-side, upload only the ciphertext to Storage, and send an E2E
+  /// message carrying the filename/type and the decryption key. The server never sees the
+  /// plaintext file or its key.
+  Future<void> sendMedia({
+    required String conversationId,
+    required String otherUserId,
+    required String otherDeviceId,
+    required String fileName,
+    required String mimeType,
+    required Uint8List bytes,
+    String caption = '',
+    int? ttlSec,
+  }) async {
+    await _ensureCrypto();
+    final me = _supabase.currentUser!.id;
+    final tenantId = await _supabase.currentTenantId();
+
+    final (cipher, keyMaterial) = await E2EService.encryptMedia(bytes);
+    final objectPath =
+        '$tenantId/$conversationId/${DateTime.now().microsecondsSinceEpoch}.bin';
+    await _db.storage.from(_mediaBucket).uploadBinary(
+          objectPath,
+          Uint8List.fromList(cipher),
+          fileOptions: const FileOptions(contentType: 'application/octet-stream'),
+        );
+
+    final bodyPlain = jsonEncode({
+      'kind': 'media',
+      'name': fileName,
+      'type': mimeType,
+      'size': bytes.length,
+      'key': keyMaterial,
+      'caption': caption,
+    });
+    final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
+    final envelope = await _crypto.e2e.encryptText(address, bodyPlain);
+
+    final inserted = await _db.from('messages').insert({
+      'tenant_id': tenantId,
+      'conversation_id': conversationId,
+      'sender_id': me,
+      'body_enc': envelope,
+      'media_path': objectPath,
+      'expires_at': ttlSec == null || ttlSec == 0
+          ? null
+          : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
+    }).select('id').single();
+    _ownPlaintext[inserted['id'] as String] = bodyPlain;
+  }
+
+  /// Download a media message's ciphertext from Storage and decrypt it. [decryptedBody] is the
+  /// JSON string from ChatMessage.text (contains the key + filename).
+  Future<(String fileName, String mimeType, List<int> bytes)> downloadMedia({
+    required String mediaPath,
+    required String decryptedBody,
+  }) async {
+    final meta = jsonDecode(decryptedBody) as Map<String, dynamic>;
+    final cipher = await _db.storage.from(_mediaBucket).download(mediaPath);
+    final plain = await E2EService.decryptMedia(cipher, meta['key'] as String);
+    return (meta['name'] as String, meta['type'] as String? ?? 'application/octet-stream', plain);
   }
 
   /// Live stream of messages for a conversation (Supabase Realtime), decrypted locally.
