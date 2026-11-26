@@ -1,0 +1,50 @@
+name: Android build
+
+# Builds a debug APK so compile/interop errors surface automatically, and uploads the APK.
+# The repo holds source (lib/, our android/ customizations) but not the generated Flutter
+# scaffolding (gradle wrapper, build.gradle, mipmaps). `flutter create` fills those in without
+# overwriting our committed files.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Fill Flutter/Android scaffolding (keeps our files)
+        run: flutter create --platforms=android --org com.wowchat --project-name wow_chat .
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze (non-blocking)
+        run: flutter analyze || true
+
+      - name: Build debug APK
+        run: |
+          flutter build apk --debug \
+            --dart-define=SUPABASE_URL=https://example.supabase.co \
+            --dart-define=SUPABASE_ANON_KEY=ci-placeholder \
+            --dart-define=ACCESS_CODE=4729
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wow-todo-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: warn

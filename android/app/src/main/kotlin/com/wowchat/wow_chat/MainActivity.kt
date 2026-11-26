@@ -1,4 +1,4 @@
-package com.wowchat.app
+package com.wowchat.wow_chat
 
 import io.flutter.embedding.android.FlutterActivity
 
