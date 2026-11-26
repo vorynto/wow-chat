@@ -22,28 +22,41 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Pin a known-good stable Flutter so pub resolves a consistent plugin set, instead of
-      # bleeding-edge where plugins demand mismatched compileSdk levels.
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.24.5
           channel: stable
           cache: true
+
+      # Force EVERY Android module (app + all plugins) to a single compileSdk/minSdk via a
+      # Gradle init script. This avoids the common "plugin X requires compileSdk N" and
+      # mismatched-SDK failures without editing generated (kts) gradle files. Applied globally
+      # from ~/.gradle/init.d so the Flutter-invoked Gradle build picks it up.
+      - name: Force unified Android SDK versions for all modules
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/compileSdk.gradle <<'EOF'
+          allprojects {
+              afterEvaluate { p ->
+                  if (p.hasProperty('android')) {
+                      p.android {
+                          compileSdkVersion 36
+                          defaultConfig {
+                              if (minSdkVersion == null || minSdkVersion.apiLevel < 24) {
+                                  minSdkVersion 24
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+          echo "init script written:"; cat ~/.gradle/init.d/compileSdk.gradle
 
       - name: Fill Flutter/Android scaffolding (keeps our files)
         run: flutter create --platforms=android --org com.wowchat --project-name wow_chat .
 
-      - name: Pin Android SDK versions
-        run: |
-          APP=android/app/build.gradle.kts
-          [ -f "$APP" ] || APP=android/app/build.gradle
-          echo "Patching $APP"
-          sed -i -E 's/compileSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.compileSdkVersion/compileSdk = 35/' "$APP"
-          sed -i -E 's/targetSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.targetSdkVersion/targetSdk = 35/' "$APP"
-          sed -i -E 's/minSdk(Version)?[[:space:]]*=?[[:space:]]*flutter\.minSdkVersion/minSdk = 24/' "$APP"
-          grep -E 'compileSdk|targetSdk|minSdk' "$APP" || true
-          # Remove the default sample test that references a non-existent MyApp/material_ui.
-          rm -f test/widget_test.dart
+      - name: Remove default sample test (references non-existent MyApp)
+        run: rm -f test/widget_test.dart
 
       - name: Pub get
         run: flutter pub get
