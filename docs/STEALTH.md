@@ -1,53 +1,42 @@
-# Stealth: iconless app + secret dial code
+# Stealth: the "wow todo" decoy
 
-wow-chat ships with **no launcher icon** and is opened by entering a secret code in the phone
-dialer. This document explains exactly what works, on which Android versions, and why.
+wow-chat hides behind a **fully working to-do app called "wow todo"**. On the surface it is an
+ordinary task list. The hidden chat is opened by typing a **secret code** into the add-task
+box — no biometrics, no dialer, no special permissions.
 
-## How "no icon" works
-The app has a single activity (`MainActivity`) with **no `LAUNCHER` intent-filter**, so it
-never appears in the app drawer — on any Android version. A dev-only `DevLauncher` alias
-(disabled in release via `showLauncherIcon=false`) lets you open it during development.
+## Why this design
+We target **Android 11–14 on users' own (unrooted) phones**. On those, Google blocks the
+"iconless app opened by a code in the stock dialer" trick (`SECRET_CODE` is system-only since
+Android 9; `NEW_OUTGOING_CALL` is gone since Android 10). A decoy app is the one approach that
+works everywhere, unrooted, with no special privileges — which is why real "vault" apps use it.
 
-What this does **not** hide:
-- **Settings → Apps** still lists it (and its data/battery usage). Hiding from the app manager
-  requires root or device-owner privileges — impossible for a normal sideloaded app.
-- First install may briefly surface it in the launcher's "recently installed" on some OEMs.
+## How it works
+1. The launcher icon + name are an ordinary to-do app ("wow todo").
+2. Opening it shows a real, usable task list (`TodoScreen`), persisted locally. Add / check /
+   swipe-to-delete all behave normally, so nothing looks off.
+3. To open the hidden chat, type the **secret code** into the "Add a task" field and submit.
+   - If it matches, the chat opens (`VaultShell` → the encrypted messenger) and the text is
+     **not** saved as a task.
+   - Anything else is added as a normal task.
+4. Inside the chat, **Privacy → Lock now** returns to the to-do screen. Screenshot protection
+   (`FLAG_SECURE`) is on only while the chat is open, so the decoy itself looks normal.
 
-## How the dial code works — and where it breaks
-Two mechanisms are wired in `SecretCodeReceiver`:
+## The secret code
+- Seeded on first run from the build-time `ACCESS_CODE` (`--dart-define=ACCESS_CODE=...`).
+- Stored only as a **salted SHA-256 hash** in Keystore-backed secure storage — never plaintext.
+- The user can change it in **Privacy → Change secret code**.
+- It can be digits or any text (e.g. a phrase that looks like a real task is good camouflage).
 
-| Mechanism | How the user triggers it | Works on |
-|---|---|---|
-| `SECRET_CODE` broadcast | Dial `*#*#<code>#*#*` in the stock dialer | **Android ≤ 8 reliably.** Android 9+ makes it a **system-only** broadcast — a sideloaded app does **not** receive it. |
-| `NEW_OUTGOING_CALL` | Type `<code>` as a number, press call | **Android ≤ 9.** **Deprecated in Android 10**, needs the restricted `PROCESS_OUTGOING_CALLS` permission; often blocked by OEMs. |
+## What this hides — and what it doesn't
+- ✅ No visible "chat app"; the icon and app name are a to-do app.
+- ✅ Works on all modern Android, unrooted, no suspicious permissions.
+- ❌ The app still appears in *Settings → Apps* as "wow todo" (its real package name is
+  visible there too; rename the package/label before release if you want).
+- ❌ A decoy is camouflage, not a cryptographic boundary. Security comes from the E2E
+  encryption + encrypted local DB; the decoy just keeps the chat from being obvious.
 
-**Bottom line:** the "type a code in the *stock* dialer" experience is reliable on **Android 9
-and older**. On **Android 10–14** Google closed both paths specifically to stop hidden apps.
-
-## Robust entry on modern Android (10–14)
-If you need dependable dial-code entry on current phones, wow-chat must become the
-**default phone/dialer app**. As the default dialer it owns the keypad and sees the digits the
-user types, so it can intercept the secret code itself — no OS broadcast needed. Trade-off: a
-default dialer **has an icon** (it appears as your "Phone" app) and must provide a real
-in-call UI. It's a normal-looking icon, not an obvious messenger, but it is not iconless.
-
-This is implemented behind a build flag (not enabled by default). To add it you need:
-- an activity with `ACTION_DIAL` / `tel:` intent-filters and `RoleManager.ROLE_DIALER`,
-- a minimal `InCallService`,
-- keypad input matching for the secret code.
-
-See `TODO(default-dialer)` markers. Ask and I'll wire the full default-dialer path.
-
-## Choosing your target
-- **Android ≤ 9 only / custom ROM:** pure iconless + `*#*#code#*#*` works great as-is.
-- **Modern phones, iconless is mandatory:** the stock-dialer code is unreliable; use an
-  alternate hidden trigger (a Quick Settings tile, an NFC tag, a specific number dialed from a
-  contact) or accept the Settings-list visibility and launch via the dev alias.
-- **Modern phones, reliable dial-code is mandatory:** become the default dialer (has an icon).
-
-## Opening it during development
-Release builds have no icon. To open the app while developing:
-```bash
-adb shell am start -n com.wowchat/.MainActivity
-```
-or build with `-PshowLauncherIcon=true` to temporarily enable the `DevLauncher` icon.
+## Ideas to harden the decoy later
+- A **second "panic" code** that opens an empty/clean chat account.
+- A **duress code** that wipes the vault.
+- Make the unlock gesture less guessable (e.g. a specific task text, or a long-press flow)
+  if typing a bare code feels too discoverable.

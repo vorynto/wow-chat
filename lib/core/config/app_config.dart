@@ -7,9 +7,11 @@ class AppConfig {
   /// Supabase anon/publishable key (safe to ship; RLS enforces access).
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  /// Secret code typed in the phone dialer to reveal the app, e.g. "7469" -> *#*#7469#*#*.
-  /// Keep this out of the APK string table in production (obfuscate / set at build time).
-  static const secretDialCode = String.fromEnvironment('SECRET_DIAL_CODE', defaultValue: '7469');
+  /// Default secret code that reveals the hidden chat from inside the To-Do decoy. Seeded on
+  /// first run; the user can change it later (stored hashed in secure storage). Set at build
+  /// time so it isn't a plain default in the APK.
+  static const defaultAccessCode =
+      String.fromEnvironment('ACCESS_CODE', defaultValue: '4729');
 
   /// TURN/STUN for WebRTC NAT traversal.
   static const iceServers = String.fromEnvironment('ICE_SERVERS'); // JSON array

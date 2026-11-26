@@ -1,64 +1,36 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Internet + calls + biometrics. No READ_CONTACTS / SMS / location: we don't want them. -->
+    <!-- Internet + calls. No READ_CONTACTS / SMS / location / dialer permissions: we don't
+         want them, and a "to-do" app asking for them would look wrong. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Legacy dial-code path (Android <= 9 reliable; deprecated on 10+). -->
-    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
 
-    <!-- No android:label/icon that advertises a messenger; the app has NO launcher icon. -->
+    <!-- Presents as an ordinary to-do app: normal label + icon, normal launcher. The hidden
+         chat lives behind a secret code entered inside the app. -->
     <application
         android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
 
-        <!-- The ONLY activity. It has NO LAUNCHER intent-filter, so it never appears in the
-             app drawer. It is started explicitly by the dial-code receiver (or, in dev builds,
-             by the optional DevLauncher alias below, or `adb shell am start`). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:excludeFromRecents="true"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"/>
-
-        <!-- DEV-ONLY visible icon. Disabled in release (manifestPlaceholder showLauncherIcon=false)
-             so production ships with zero icon. Lets you open the app during development. -->
-        <activity-alias
-            android:name=".DevLauncher"
-            android:targetActivity=".MainActivity"
-            android:label="@string/app_name"
-            android:enabled="${showLauncherIcon}"
-            android:exported="true">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity-alias>
-
-        <!-- Secret dial-code receiver. Two entry mechanisms for max device coverage:
-             1) SECRET_CODE: dial *#*#<code>#*#* (reliable on Android <= 8/9; system-only after).
-             2) NEW_OUTGOING_CALL: dial the code as a number + call (deprecated on Android 10+). -->
-        <receiver
-            android:name=".SecretCodeReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.provider.Telephony.SECRET_CODE"/>
-                <data android:scheme="android_secret_code" android:host="${secretDialCode}"/>
-            </intent-filter>
-            <intent-filter android:priority="999">
-                <action android:name="android.intent.action.NEW_OUTGOING_CALL"/>
-            </intent-filter>
-        </receiver>
+        </activity>
 
         <meta-data
             android:name="flutterEmbedding"

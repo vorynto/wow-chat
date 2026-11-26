@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/storage/access_code.dart';
 import '../stealth/stealth_gate.dart';
 import 'privacy_settings.dart';
 
@@ -25,6 +26,38 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
   Future<void> _load() async {
     final s = await ref.read(privacyRepositoryProvider).load();
     if (mounted) setState(() => _s = s);
+  }
+
+  Future<void> _changeCode() async {
+    final controller = TextEditingController();
+    final newCode = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New secret code'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.visiblePassword,
+          decoration: const InputDecoration(hintText: 'Enter a new code'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (newCode != null && newCode.isNotEmpty) {
+      await AccessCodeService.instance.setCode(newCode);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Secret code updated')),
+        );
+      }
+    }
   }
 
   Future<void> _update(PrivacySettings next) async {
@@ -100,17 +133,18 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   value: s.blockScreenshots,
                   onChanged: (v) => _update(s.copyWith(blockScreenshots: v)),
                 ),
-                SwitchListTile(
-                  title: const Text('App lock'),
-                  subtitle: const Text('Require biometrics / PIN to open'),
-                  value: s.appLock,
-                  onChanged: (v) => _update(s.copyWith(appLock: v)),
+                const _Section('Access'),
+                ListTile(
+                  leading: const Icon(Icons.password),
+                  title: const Text('Change secret code'),
+                  subtitle: const Text('The code typed in the To-Do app to open chat'),
+                  onTap: _changeCode,
                 ),
                 ListTile(
-                  leading: const Icon(Icons.dialpad),
-                  title: const Text('App is hidden'),
-                  subtitle: const Text('No launcher icon. Open by dialing your secret code.'),
-                  trailing: const Icon(Icons.check_circle, color: Colors.tealAccent),
+                  leading: const Icon(Icons.lock),
+                  title: const Text('Lock now'),
+                  subtitle: const Text('Return to the To-Do screen'),
+                  onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
                 ),
                 const _Section('Account'),
                 ListTile(

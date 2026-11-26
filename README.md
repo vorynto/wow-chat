@@ -15,9 +15,9 @@ audio/video calls over the internet (so calls never touch — or block — the c
 
 | Requested feature | Reality | What we build |
 |---|---|---|
-| Hidden from the app list | **Iconless** app (no `LAUNCHER` activity) → no drawer icon on any Android version. Still shows in *Settings → Apps* (unavoidable without root). | Ship with no launcher activity; dev-only `DevLauncher` alias behind a build flag. |
-| Open via dial-pad code | Android only. `*#*#<code>#*#*` (`SECRET_CODE`) or dialing the code (`NEW_OUTGOING_CALL`). **Reliable on Android ≤ 9; restricted/blocked on 10+** (anti-stalkerware). iOS cannot do this. | `SecretCodeReceiver` handles both; default-dialer path documented for modern Android. See `docs/STEALTH.md`. |
-| Second lock after opening | A found phone shouldn't reveal chats. | Biometric / device-credential `AppLockGate` on every open. |
+| Hidden chat app | On modern unrooted Android, Google blocks iconless + stock-dialer-code entry. A decoy app is the approach that works everywhere. | The app ships as **"wow todo"**, a real working to-do list; the chat hides behind it. See `docs/STEALTH.md`. |
+| Open with a secret code | No biometrics/dialer. | Type the secret code into the to-do "Add a task" box → the hidden chat opens. Code is salted-hashed in secure storage; user-changeable. |
+| Screenshot protection | A found phone shouldn't leak chats via screenshots/recents. | `FLAG_SECURE` applied while the chat is open (not on the decoy). |
 | Carrier doesn't detect the call / "I'm on another call" | **Automatic.** Calls are VoIP/WebRTC over data. The carrier never sees a call, the cellular line stays free, incoming regular calls still ring. No evasion needed. | WebRTC + DTLS-SRTP, signaling over Supabase Realtime. |
 | Highly secure, no data leaks | The core of the app. | E2E encryption (libsignal Double Ratchet), ciphertext-only backend, encrypted-at-rest local DB, strict RLS, app-lock, panic wipe. |
 | iOS | Cannot hide the app or register dial codes. | Out of scope for stealth; a normal private iOS client could be added later. |
@@ -31,9 +31,8 @@ secret-launch behavior, and doing it anyway gets the developer account terminate
 
 ```
 ┌─────────────────────────────── Android device ───────────────────────────────┐
-│  (no launcher icon)                                                            │
-│  Secret dial code receiver  ──*#*#code#*#*─▶ MainActivity ─▶ biometric lock ─▶ │
-│                                              Real wow-chat UI (Flutter)        │
+│  "wow todo" (decoy to-do app)  ──secret code in add-task box──▶               │
+│                                  Hidden wow-chat UI (Flutter) + FLAG_SECURE    │
 │                                                                               │
 │  Flutter app                                                                  │
 │   ├─ Crypto: libsignal (X3DH + Double Ratchet)  — private keys never leave    │
@@ -74,9 +73,10 @@ lib/features/auth/     Sign-in, device registration, key publishing
 lib/features/chat/     Conversations, messages, media
 lib/features/calls/    WebRTC audio/video
 lib/features/privacy/  Privacy settings model + enforcement
-lib/features/stealth/  Secret-code bridge, FLAG_SECURE, biometric app-lock
+lib/features/decoy/     "wow todo" decoy to-do app + secret-code unlock + vault shell
+lib/features/stealth/   FLAG_SECURE screenshot protection
 lib/features/tenant/   Tenant context
-android/               Native: secret dial-code receiver, decoy launcher, FLAG_SECURE
+android/               Native: normal "wow todo" launcher activity
 docs/                  Threat model, build & deploy guide
 ```
 

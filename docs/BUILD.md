@@ -41,54 +41,32 @@ a trigger so the client can't set an arbitrary tenant).
 flutter run \
   --dart-define=SUPABASE_URL=https://xxxx.supabase.co \
   --dart-define=SUPABASE_ANON_KEY=eyJ... \
-  --dart-define=SECRET_DIAL_CODE=7469 \
+  --dart-define=ACCESS_CODE=4729 \
   --dart-define=ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"}]'
 ```
 
-Wire the secret code and the iconless/dev-icon toggle into `android/app/build.gradle`. The
-native receiver reads `SECRET_DIAL_CODE` from `BuildConfig`; the manifest reads the two
-placeholders:
-```gradle
-android {
-    buildFeatures { buildConfig true }
-    defaultConfig {
-        def secretCode = project.findProperty('SECRET_DIAL_CODE') ?: '7469'
-        buildConfigField "String", "SECRET_DIAL_CODE", "\"${secretCode}\""
-        // Manifest placeholders:
-        manifestPlaceholders = [
-            // host for the *#*#<code>#*#* SECRET_CODE intent-filter
-            secretDialCode : secretCode,
-            // false in release => NO launcher icon. Pass -PshowLauncherIcon=true for dev.
-            showLauncherIcon: (project.findProperty('showLauncherIcon') ?: 'false')
-        ]
-    }
-}
-```
-
-Release build is iconless. For a dev build you can open from the drawer:
-```bash
-flutter build apk --debug -PshowLauncherIcon=true --dart-define=...
-```
-or always open via `adb shell am start -n com.wowchat/.MainActivity`.
-
-> Read `docs/STEALTH.md` first: the stock-dialer code path is reliable only on Android ≤ 9.
-> On Android 10+ it's restricted; robust entry there needs the default-dialer approach.
+`ACCESS_CODE` is only the **initial** secret code (seeded on first run, stored salted-hashed).
+Users change it in Privacy → Change secret code. No native gradle placeholders are needed for
+stealth anymore — the app is a normal launcher app ("wow todo") and the unlock is pure Dart.
 
 ## 5. Build the APK (sideload)
 ```bash
 flutter build apk --release \
   --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=... \
-  --dart-define=SECRET_DIAL_CODE=7469
+  --dart-define=ACCESS_CODE=4729
 ```
 Output: `build/app/outputs/flutter-apk/app-release.apk`. Install with `adb install`.
 
-## 6. Using the stealth features
-- The app appears in the drawer as **Calculator**. Open it, type the passcode, press `=`.
-- Or dial `*#*#7469#*#*` in the **system phone app**. Grant the outgoing-call permission on
-  first use. (This path is Android-only and not available through Google Play.)
+## 6. Using the app
+- It installs and appears as **"wow todo"** — an ordinary to-do app. Add/check/delete tasks.
+- To open the hidden chat: type the **secret code** in the "Add a task" box and submit.
+- Inside chat: **Privacy → Lock now** returns to the to-do screen; **Change secret code** sets
+  a new one.
 
 ## Known limits
-- No Google Play distribution (policy). Sideload or private MDM only.
-- No iOS stealth (platform-impossible). An iOS client would be a normal, visible messenger.
-- The secret-dial-code path depends on `NEW_OUTGOING_CALL`, which newer Android versions
-  increasingly restrict; test on your target OS versions.
+- No Google Play distribution — a disguised app with hidden functionality violates Play policy.
+  Sideload (APK) or private MDM only.
+- The decoy is camouflage, not a crypto boundary. Real protection is the E2E encryption +
+  encrypted local DB. The app is still listed in Settings → Apps as "wow todo".
+- Works on all modern Android (11–14), unrooted — no special permissions required for the
+  decoy/unlock.

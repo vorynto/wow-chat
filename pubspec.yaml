@@ -27,8 +27,7 @@ dependencies:
   # Calls
   flutter_webrtc: ^0.12.1
 
-  # App-lock / privacy enforcement
-  local_auth: ^2.3.0             # biometric / device credential
+  # Privacy enforcement
   flutter_windowmanager_plus: ^1.0.1  # FLAG_SECURE (block screenshots/recents)
 
   # State & routing
