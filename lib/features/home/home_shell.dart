@@ -5,6 +5,8 @@ import '../../core/providers.dart';
 import '../privacy/privacy_screen.dart';
 import '../chat/models.dart';
 import '../chat/new_chat_screen.dart';
+import '../calls/call_service.dart';
+import '../calls/call_screen.dart';
 
 /// Main app shell once signed in + onboarded. Chats / Calls / Settings.
 class HomeShell extends ConsumerStatefulWidget {
@@ -15,12 +17,36 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
+  CallService? _calls;
 
   static const _pages = [
     _ChatsTab(),
     _CallsTab(),
     PrivacyScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _calls = ref.read(callServiceProvider);
+    _calls!.init();
+    _calls!.state.addListener(_onCallState);
+  }
+
+  void _onCallState() {
+    // Surface an incoming call full-screen.
+    if (_calls!.state.value == CallState.ringing && mounted) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => CallScreen(service: _calls!, title: 'Incoming', incoming: true),
+      ));
+    }
+  }
+
+  @override
+  void dispose() {
+    _calls?.state.removeListener(_onCallState);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +109,15 @@ class _CallsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Calls')),
-        body: const Center(child: Text('Encrypted audio/video calls — next build step.')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Start an encrypted call from inside a chat (phone / video icons). '
+              'Incoming calls ring here automatically.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       );
 }

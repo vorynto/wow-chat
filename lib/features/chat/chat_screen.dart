@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../calls/call_screen.dart';
 import 'models.dart';
 
 /// A 1:1 encrypted conversation. Streams messages and sends E2E-encrypted text.
@@ -51,12 +52,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  Future<void> _startCall({required bool video}) async {
+    final calls = ref.read(callServiceProvider);
+    await calls.init();
+    await calls.startCall(
+      conversationId: widget.conversationId,
+      peerUserId: widget.otherUserId,
+      peerDeviceId: widget.otherDeviceId,
+      video: video,
+    );
+    if (!mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CallScreen(service: calls, title: widget.title),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = ref.read(supabaseServiceProvider).currentUser?.id;
     final repo = ref.read(chatRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.call),
+            onPressed: () => _startCall(video: false),
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam),
+            onPressed: () => _startCall(video: true),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

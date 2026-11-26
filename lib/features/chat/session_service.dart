@@ -11,9 +11,13 @@ class SessionService {
   final SupabaseService _supabase;
   final SignalProtocolStore _store;
 
+  /// Deterministic Signal address for a (user, device) pair. Must match on both sides.
+  SignalProtocolAddress addressFor(String userId, String deviceId) =>
+      SignalProtocolAddress(userId, deviceId.hashCode & 0x7fffffff);
+
   /// Ensure a session exists with [userId]'s [deviceId]. Idempotent: no-op if one exists.
   Future<SignalProtocolAddress> ensureSession(String userId, String deviceId) async {
-    final address = SignalProtocolAddress(userId, deviceId.hashCode & 0x7fffffff);
+    final address = addressFor(userId, deviceId);
     final exists = await _store.containsSession(address);
     if (exists) return address;
 

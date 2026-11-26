@@ -1,11 +1,8 @@
-import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/crypto/e2e_service.dart';
-import '../../core/crypto/signal_store.dart';
+import '../../core/crypto/crypto_engine.dart';
 import '../../core/supabase/supabase_service.dart';
 import 'models.dart';
-import 'session_service.dart';
 
 /// Sends and receives end-to-end encrypted messages.
 ///
@@ -16,21 +13,14 @@ class ChatRepository {
   final SupabaseService _supabase;
 
   SupabaseClient get _db => _supabase.client;
-  SignalProtocolStore? _store;
-  E2EService? _e2e;
-  SessionService? _sessions;
+  final _crypto = CryptoEngine.instance;
 
   /// Plaintext of our own outgoing messages, by message id. The server only holds a copy
   /// encrypted for the recipient, so we can't decrypt our own — we keep the cleartext here.
   /// TODO: persist this in the SQLCipher local DB so sent history survives restarts.
   final Map<String, String> _ownPlaintext = {};
 
-  Future<void> _ensureCrypto() async {
-    if (_store != null) return;
-    _store = await SignalStoreFactory.build();
-    _e2e = E2EService(_store!);
-    _sessions = SessionService(_supabase, _store!);
-  }
+  Future<void> _ensureCrypto() => _crypto.ensureReady(_supabase);
 
   /// Tenant members other than me, for starting a new chat. RLS limits this to our tenant.
   Future<List<Map<String, dynamic>>> listContacts() async {
@@ -91,8 +81,8 @@ class ChatRepository {
     final me = _supabase.currentUser!.id;
     final tenantId = await _supabase.currentTenantId();
 
-    final address = await _sessions!.ensureSession(otherUserId, otherDeviceId);
-    final envelope = await _e2e!.encryptText(address, text);
+    final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
+    final envelope = await _crypto.e2e.encryptText(address, text);
 
     final inserted = await _db.from('messages').insert({
       'tenant_id': tenantId,
@@ -130,8 +120,8 @@ class ChatRepository {
               text = _ownPlaintext[r['id'] as String]; // may be null after a restart (TODO: persist)
             } else {
               try {
-                final address = await _sessions!.ensureSession(otherUserId, otherDeviceId);
-                text = await _e2e!.decryptText(address, r['body_enc'] as String);
+                final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
+                text = await _crypto.e2e.decryptText(address, r['body_enc'] as String);
               } catch (_) {
                 failed = true;
               }
