@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart';
 import '../storage/secure_store.dart';
 import '../supabase/supabase_service.dart';
+import 'crypto_engine.dart';
 
 /// Generates and persists the device's Signal identity + prekeys, and publishes the
 /// PUBLIC half to Supabase so other users can start an X3DH session with us.
@@ -31,8 +32,14 @@ class KeyManager {
     final signedPreKey = generateSignedPreKey(identityKeyPair, 0);
     final oneTimePreKeys = generatePreKeys(0, oneTimeCount);
 
-    // TODO(store): persist signedPreKey + oneTimePreKeys into the local Signal stores
-    // (InMemory* for now; swap for SQLCipher-backed stores in e2e_service.dart).
+    // Persist the PRIVATE prekey material into the (now SQLCipher-backed) Signal store so the
+    // receiver side of X3DH can complete when someone sends us a PreKey message.
+    await CryptoEngine.instance.ensureReady(_supabase);
+    final store = CryptoEngine.instance.store;
+    await store.storeSignedPreKey(signedPreKey.id, signedPreKey);
+    for (final pk in oneTimePreKeys) {
+      await store.storePreKey(pk.id, pk);
+    }
 
     await _publishBundle(
       deviceId: deviceId,

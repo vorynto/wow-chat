@@ -1,19 +1,17 @@
 import 'dart:convert';
 import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart';
-import '../storage/secure_store.dart';
 
-/// Builds the Signal protocol store (identity / prekeys / sessions / sender-keys).
-///
-/// NOTE: this uses the in-memory store seeded from the persisted identity. Sessions created
-/// at runtime therefore do not survive an app restart yet. Before shipping, replace with
-/// SQLCipher-backed implementations of IdentityKeyStore / PreKeyStore / SignedPreKeyStore /
-/// SessionStore so ratchet state persists. The repository API below does not change when you
-/// swap the store.
+import '../storage/encrypted_db.dart';
+import '../storage/secure_store.dart';
+import 'persistent_signal_store.dart';
+
+/// Builds the SQLCipher-backed Signal protocol store, seeded from the persisted identity.
+/// Sessions and prekeys now survive app restarts.
 class SignalStoreFactory {
   static const _identityKeyName = 'signal_identity_keypair';
   static const _registrationIdName = 'signal_registration_id';
 
-  static Future<InMemorySignalProtocolStore> build() async {
+  static Future<PersistentSignalStore> build() async {
     final store = SecureStore.instance;
     final rawIdentity = await store.read(_identityKeyName);
     final rawReg = await store.read(_registrationIdName);
@@ -22,6 +20,10 @@ class SignalStoreFactory {
     }
     final identity = IdentityKeyPair.fromSerialized(base64.decode(rawIdentity));
     final registrationId = int.parse(rawReg);
-    return InMemorySignalProtocolStore(identity, registrationId);
+
+    final db = await EncryptedDb.instance();
+    final signalStore = PersistentSignalStore(identity, registrationId, db);
+    await signalStore.load();
+    return signalStore;
   }
 }

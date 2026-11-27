@@ -15,6 +15,7 @@ class CryptoEngine {
   E2EService? _e2e;
   SessionService? _sessions;
 
+  SignalProtocolStore get store => _store!;
   E2EService get e2e => _e2e!;
   SessionService get sessions => _sessions!;
 

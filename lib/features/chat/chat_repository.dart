@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/crypto/crypto_engine.dart';
 import '../../core/crypto/e2e_service.dart';
 import '../../core/supabase/supabase_service.dart';
+import 'local_message_cache.dart';
 import 'models.dart';
 
 /// Sends and receives end-to-end encrypted messages.
@@ -18,10 +19,8 @@ class ChatRepository {
   SupabaseClient get _db => _supabase.client;
   final _crypto = CryptoEngine.instance;
 
-  /// Plaintext of our own outgoing messages, by message id. The server only holds a copy
-  /// encrypted for the recipient, so we can't decrypt our own — we keep the cleartext here.
-  /// TODO: persist this in the SQLCipher local DB so sent history survives restarts.
-  final Map<String, String> _ownPlaintext = {};
+  /// Decrypted message plaintext (sent + received), persisted in the encrypted local DB.
+  final _cache = LocalMessageCache();
 
   Future<void> _ensureCrypto() => _crypto.ensureReady(_supabase);
 
@@ -96,7 +95,7 @@ class ChatRepository {
           ? null
           : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
     }).select('id').single();
-    _ownPlaintext[inserted['id'] as String] = text;
+    await _cache.put(inserted['id'] as String, text);
   }
 
   static const _mediaBucket = 'media';
@@ -148,7 +147,7 @@ class ChatRepository {
           ? null
           : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
     }).select('id').single();
-    _ownPlaintext[inserted['id'] as String] = bodyPlain;
+    await _cache.put(inserted['id'] as String, bodyPlain);
   }
 
   /// Download a media message's ciphertext from Storage and decrypt it. [decryptedBody] is the
@@ -180,15 +179,18 @@ class ChatRepository {
           final me = _supabase.currentUser!.id;
           final out = <ChatMessage>[];
           for (final r in rows) {
+            final id = r['id'] as String;
             final senderId = r['sender_id'] as String;
-            String? text;
             var failed = false;
-            if (senderId == me) {
-              text = _ownPlaintext[r['id'] as String]; // may be null after a restart (TODO: persist)
-            } else {
+
+            // Read decrypted text from the local cache first; a Double-Ratchet message can be
+            // decrypted only once, so we never re-decrypt.
+            String? text = await _cache.get(id);
+            if (text == null && senderId != me) {
               try {
                 final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
                 text = await _crypto.e2e.decryptText(address, r['body_enc'] as String);
+                await _cache.put(id, text);
               } catch (_) {
                 failed = true;
               }
