@@ -64,11 +64,12 @@ jobs:
       - name: Analyze (non-blocking)
         run: flutter analyze || true
 
+      # NOTE: the anon key is a publishable, RLS-protected key meant to ship in the client.
       - name: Build debug APK
         run: |
           flutter build apk --debug \
-            --dart-define=SUPABASE_URL=https://example.supabase.co \
-            --dart-define=SUPABASE_ANON_KEY=ci-placeholder \
+            --dart-define=SUPABASE_URL=https://jupaugtyoayyakoqfpqj.supabase.co \
+            --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1cGF1Z3R5b2F5eWFrb3FmcHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU4NDgxMDIsImV4cCI6MjExMTQyNDEwMn0.o9QfdqdduTZkcR7RWwXPwABfBcE61o0r7Eej74czJYA \
             --dart-define=ACCESS_CODE=4729
 
       - uses: actions/upload-artifact@v4
@@ -83,8 +84,8 @@ jobs:
       - name: Build release APK
         run: |
           flutter build apk --release \
-            --dart-define=SUPABASE_URL=https://example.supabase.co \
-            --dart-define=SUPABASE_ANON_KEY=ci-placeholder \
+            --dart-define=SUPABASE_URL=https://jupaugtyoayyakoqfpqj.supabase.co \
+            --dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1cGF1Z3R5b2F5eWFrb3FmcHFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU4NDgxMDIsImV4cCI6MjExMTQyNDEwMn0.o9QfdqdduTZkcR7RWwXPwABfBcE61o0r7Eej74czJYA \
             --dart-define=ACCESS_CODE=4729
 
       - uses: actions/upload-artifact@v4
