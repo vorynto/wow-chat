@@ -126,7 +126,7 @@ class GroupRepository {
               final convId = r['conversation_id'] as String;
               final address = _crypto.sessions.addressFor(fromUser, fromDevice);
               final skdmB64 = await _crypto.e2e.decryptText(address, r['skdm_enc'] as String);
-              final skdm = SenderKeyDistributionMessage.fromSerialized(
+              final skdm = SenderKeyDistributionMessageWrapper.fromSerialized(
                   Uint8List.fromList(base64.decode(skdmB64)));
               final name = SenderKeyName(convId, address);
               await GroupSessionBuilder(_crypto.senderKeys).process(name, skdm);
