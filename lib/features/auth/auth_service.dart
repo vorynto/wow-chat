@@ -17,9 +17,13 @@ class AuthService {
   Stream<AuthState> get authChanges => _db.auth.onAuthStateChange;
   bool get isSignedIn => _supabase.isSignedIn;
 
-  /// Step 1: request a one-time code by email.
-  Future<void> sendEmailOtp(String email) =>
-      _db.auth.signInWithOtp(email: email.trim());
+  /// Step 1: request a 6-digit code by email. This both CREATES the account (if the email is
+  /// new) and signs in an existing one — `shouldCreateUser: true` makes it an email-OTP
+  /// sign-up + sign-in in a single flow.
+  Future<void> sendEmailOtp(String email) => _db.auth.signInWithOtp(
+        email: email.trim(),
+        shouldCreateUser: true,
+      );
 
   /// Step 2: verify the code. On success a session exists; the user may still need onboarding.
   Future<void> verifyEmailOtp(String email, String token) async {
