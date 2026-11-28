@@ -5,6 +5,8 @@ import '../../core/providers.dart';
 import '../privacy/privacy_screen.dart';
 import '../chat/models.dart';
 import '../chat/new_chat_screen.dart';
+import '../chat/new_group_screen.dart';
+import '../chat/group_chat_screen.dart';
 import '../calls/call_service.dart';
 import '../calls/call_screen.dart';
 
@@ -31,6 +33,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _calls = ref.read(callServiceProvider);
     _calls!.init();
     _calls!.state.addListener(_onCallState);
+    // Process incoming group sender-key distributions as they arrive.
+    ref.read(groupRepositoryProvider).startSkdmListener();
   }
 
   void _onCallState() {
@@ -84,21 +88,57 @@ class _ChatsTab extends ConsumerWidget {
           }
           return ListView.builder(
             itemCount: convs.length,
-            itemBuilder: (_, i) => ListTile(
-              leading: const CircleAvatar(child: Icon(Icons.lock)),
-              title: Text(convs[i].isGroup ? 'Group' : 'Direct chat'),
-              subtitle: Text('Encrypted • ${convs[i].createdAt.toLocal()}'),
-              // Opening a conversation needs the other member's device; resolved via NewChat
-              // for now. A conversation->member lookup will replace this in the next step.
-            ),
+            itemBuilder: (_, i) {
+              final c = convs[i];
+              return ListTile(
+                leading: CircleAvatar(child: Icon(c.isGroup ? Icons.group : Icons.lock)),
+                title: Text(c.isGroup ? 'Group' : 'Direct chat'),
+                subtitle: Text('Encrypted • ${c.createdAt.toLocal()}'),
+                onTap: c.isGroup
+                    ? () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => GroupChatScreen(conversationId: c.id, title: 'Group'),
+                        ))
+                    // Opening a 1:1 needs the peer's device; use New chat for now.
+                    : null,
+              );
+            },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NewChatScreen()),
+      floatingActionButton: Builder(
+        builder: (ctx) => FloatingActionButton(
+          onPressed: () => showModalBottomSheet<void>(
+            context: ctx,
+            builder: (_) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.person_add),
+                    title: const Text('New chat'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NewChatScreen()),
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.group_add),
+                    title: const Text('New group'),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NewGroupScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          child: const Icon(Icons.edit),
         ),
-        child: const Icon(Icons.edit),
       ),
     );
   }

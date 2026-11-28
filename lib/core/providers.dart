@@ -5,6 +5,7 @@ import 'supabase/supabase_service.dart';
 import '../features/auth/auth_service.dart';
 import '../features/privacy/privacy_settings.dart';
 import '../features/chat/chat_repository.dart';
+import '../features/chat/group_repository.dart';
 import '../features/calls/call_service.dart';
 
 final supabaseServiceProvider = Provider((_) => SupabaseService.instance);
@@ -19,6 +20,9 @@ final authStateProvider = StreamProvider<AuthState>(
 
 final chatRepositoryProvider =
     Provider((ref) => ChatRepository(ref.watch(supabaseServiceProvider)));
+
+final groupRepositoryProvider =
+    Provider((ref) => GroupRepository(ref.watch(supabaseServiceProvider)));
 
 /// Single CallService for the session (holds the active call + signal listener).
 final callServiceProvider = Provider<CallService>((ref) {

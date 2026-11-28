@@ -20,7 +20,7 @@ class EncryptedDb {
     _db = await openDatabase(
       path,
       password: key,
-      version: 1,
+      version: 2,
       onCreate: (db, _) async {
         await db.execute('CREATE TABLE sessions(address TEXT PRIMARY KEY, record BLOB)');
         await db.execute('CREATE TABLE prekeys(id INTEGER PRIMARY KEY, record BLOB)');
@@ -29,6 +29,16 @@ class EncryptedDb {
         // Decrypted message text by message id (both sent and received). Received messages are
         // decrypted exactly once — re-decrypting would fail after the ratchet advances.
         await db.execute('CREATE TABLE msg_plain(id TEXT PRIMARY KEY, body TEXT)');
+        // Per-group sender keys (keyed by "groupId::name:device").
+        await db.execute('CREATE TABLE sender_keys(name TEXT PRIMARY KEY, record BLOB)');
+        // Groups to which we've already distributed our sender key.
+        await db.execute('CREATE TABLE group_distributed(conversation_id TEXT PRIMARY KEY)');
+      },
+      onUpgrade: (db, oldV, newV) async {
+        if (oldV < 2) {
+          await db.execute('CREATE TABLE IF NOT EXISTS sender_keys(name TEXT PRIMARY KEY, record BLOB)');
+          await db.execute('CREATE TABLE IF NOT EXISTS group_distributed(conversation_id TEXT PRIMARY KEY)');
+        }
       },
     );
     return _db!;
