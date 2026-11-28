@@ -26,12 +26,19 @@ class AuthService {
       );
 
   /// Step 2: verify the code. On success a session exists; the user may still need onboarding.
+  ///
+  /// A brand-new email (first-time signup) is verified under the `signup` OTP type, while an
+  /// existing email uses the `email` type. We don't know which applies, so we try `email`
+  /// first and fall back to `signup`. A failed verify does NOT consume the token, so retrying
+  /// with another type is safe.
   Future<void> verifyEmailOtp(String email, String token) async {
-    await _db.auth.verifyOTP(
-      type: OtpType.email,
-      email: email.trim(),
-      token: token.trim(),
-    );
+    final e = email.trim();
+    final t = token.replaceAll(RegExp(r'\s'), ''); // strip spaces from a pasted code
+    try {
+      await _db.auth.verifyOTP(type: OtpType.email, email: e, token: t);
+    } on AuthException {
+      await _db.auth.verifyOTP(type: OtpType.signup, email: e, token: t);
+    }
   }
 
   /// Does the signed-in user already belong to a tenant (has a profile)?

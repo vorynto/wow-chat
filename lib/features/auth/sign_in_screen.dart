@@ -46,10 +46,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       await action();
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = _humanize(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _humanize(Object e) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('expired') || s.contains('invalid') || s.contains('otp_expired')) {
+      return 'That code has expired or was already used. Tap “Resend code” to get a new one, '
+          'then enter it promptly (don’t open any link in the email).';
+    }
+    if (s.contains('rate') || s.contains('limit') || s.contains('429')) {
+      return 'Too many attempts. Wait a minute and try again.';
+    }
+    if (s.contains('email') && s.contains('not') && s.contains('allow')) {
+      return 'Sign-ups are disabled for this project. Enable them in Supabase → Auth → Email.';
+    }
+    return e.toString();
   }
 
   Future<void> _sendCode() async {
