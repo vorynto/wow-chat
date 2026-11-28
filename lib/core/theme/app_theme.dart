@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 /// Central modern theme for wow-chat. Material 3, a violet→teal seed, rounded shapes and smooth
