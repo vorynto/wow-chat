@@ -123,7 +123,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               TextField(
                 controller: _code,
                 keyboardType: TextInputType.number,
-                maxLength: 6,
+                // Supabase OTP length is configurable (6–10 digits); don't cap it.
                 decoration: const InputDecoration(
                   labelText: 'Verification code',
                   border: OutlineInputBorder(),
