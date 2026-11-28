@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/providers.dart';
+import 'device_media_picker.dart';
+import 'device_media_service.dart';
 import 'gallery_repository.dart';
 
 /// The hidden gallery: a grid of encrypted photos/videos stored only inside the vault.
@@ -33,17 +35,58 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     if (mounted) setState(() { _items = items; _loading = false; });
   }
 
+  final _media = DeviceMediaService();
+
   Future<void> _import() async {
-    final res = await FilePicker.platform.pickFiles(type: FileType.media, allowMultiple: true);
-    if (res == null) return;
+    if (!await _media.ensureReadPermission()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Media permission is required to import.')),
+        );
+      }
+      return;
+    }
+    final assets = await _media.recentAssets();
+    if (!mounted) return;
+    final selected = await Navigator.of(context).push<List<AssetEntity>>(
+      MaterialPageRoute(builder: (_) => DeviceMediaPicker(assets: assets)),
+    );
+    if (selected == null || selected.isEmpty) return;
+
     setState(() => _importing = true);
     try {
-      for (final f in res.files) {
-        if (f.path != null) {
-          await _repo.importFile(sourcePath: f.path!, name: f.name);
-        }
+      // One-time "All files access" so originals can be deleted with no per-photo dialog.
+      final canDelete = await _media.requestAllFilesAccess();
+
+      final importedIds = <String>[];
+      for (final a in selected) {
+        final bytes = await a.originBytes;
+        if (bytes == null) continue;
+        final title = await a.titleAsync;
+        await _repo.importBytes(
+          name: title.isEmpty ? '${a.id}.bin' : title,
+          bytes: bytes,
+          type: a.type == AssetType.video ? 'video' : 'image',
+        );
+        importedIds.add(a.id);
       }
+
+      // Delete the originals from the device gallery.
+      if (canDelete) {
+        await _media.deleteOriginals(importedIds); // silent, no confirmation
+      }
+
       await _load();
+      if (mounted && !canDelete) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Imported. Originals were kept — enable "All files access" in settings to '
+              'delete them automatically.',
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import failed: $e')));

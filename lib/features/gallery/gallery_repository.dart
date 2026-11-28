@@ -62,7 +62,11 @@ class GalleryRepository {
 
   /// Import a file from disk: encrypt its bytes, store ciphertext + metadata.
   Future<void> importFile({required String sourcePath, required String name}) async {
-    final bytes = await File(sourcePath).readAsBytes();
+    await importBytes(name: name, bytes: await File(sourcePath).readAsBytes());
+  }
+
+  /// Import raw bytes (e.g. from a device asset): encrypt, store ciphertext + metadata.
+  Future<void> importBytes({required String name, required Uint8List bytes, String? type}) async {
     final (cipher, keymat) = await E2EService.encryptMedia(bytes);
 
     final id = DateTime.now().microsecondsSinceEpoch.toString();
@@ -75,7 +79,7 @@ class GalleryRepository {
       'id': id,
       'path': outPath,
       'name': name,
-      'type': _typeFor(name),
+      'type': type ?? _typeFor(name),
       'keymat': keymat,
       'size': bytes.length,
       'created_at': DateTime.now().toIso8601String(),

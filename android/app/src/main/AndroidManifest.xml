@@ -8,6 +8,17 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- Hidden gallery: read device media to import, and delete originals. Silent deletion
+         (no per-file system dialog) requires MANAGE_EXTERNAL_STORAGE, granted once by the user
+         in system settings. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
     <!-- Presents as an ordinary to-do app: normal label + icon, normal launcher. The hidden
          chat lives behind a secret code entered inside the app. -->
     <application
