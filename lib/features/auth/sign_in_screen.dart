@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../core/providers.dart';
+import '../../core/theme/app_theme.dart';
 
 /// Create an account (or sign in) with email + a one-time code. No password.
 /// Entering a new email creates the account; the emailed code verifies it.
@@ -74,7 +76,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Create account')),
-      body: Padding(
+      body: Container(
+        width: double.infinity,
+        decoration: AppTheme.heroGradient(context),
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,6 +136,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
             ],
           ],
+        ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.1),
         ),
       ),
     );

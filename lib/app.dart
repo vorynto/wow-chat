@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/storage/first_run.dart';
+import 'core/theme/app_theme.dart';
 import 'features/decoy/todo_screen.dart';
 import 'features/decoy/vault_shell.dart';
 import 'features/onboarding/welcome_screen.dart';
@@ -17,7 +18,9 @@ class WowChatApp extends StatelessWidget {
     return MaterialApp(
       title: 'wow todo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: ThemeMode.dark,
       home: const _RootGate(),
     );
   }
