@@ -30,6 +30,9 @@ dependencies:
   file_picker: ^8.1.2
   open_filex: ^4.5.0
 
+  # Hidden gallery (in-app encrypted video playback)
+  video_player: ^2.9.1
+
   # Privacy enforcement
   flutter_windowmanager_plus: ^1.0.1  # FLAG_SECURE (block screenshots/recents)
 

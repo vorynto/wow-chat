@@ -7,6 +7,7 @@ import '../features/privacy/privacy_settings.dart';
 import '../features/chat/chat_repository.dart';
 import '../features/chat/group_repository.dart';
 import '../features/calls/call_service.dart';
+import '../features/gallery/gallery_repository.dart';
 
 final supabaseServiceProvider = Provider((_) => SupabaseService.instance);
 
@@ -23,6 +24,8 @@ final chatRepositoryProvider =
 
 final groupRepositoryProvider =
     Provider((ref) => GroupRepository(ref.watch(supabaseServiceProvider)));
+
+final galleryRepositoryProvider = Provider((_) => GalleryRepository());
 
 /// Single CallService for the session (holds the active call + signal listener).
 final callServiceProvider = Provider<CallService>((ref) {

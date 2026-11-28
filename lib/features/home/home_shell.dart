@@ -9,6 +9,7 @@ import '../chat/new_group_screen.dart';
 import '../chat/group_chat_screen.dart';
 import '../calls/call_service.dart';
 import '../calls/call_screen.dart';
+import '../gallery/gallery_screen.dart';
 
 /// Main app shell once signed in + onboarded. Chats / Calls / Settings.
 class HomeShell extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   static const _pages = [
     _ChatsTab(),
     _CallsTab(),
+    GalleryScreen(),
     PrivacyScreen(),
   ];
 
@@ -62,6 +64,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chats'),
           NavigationDestination(icon: Icon(Icons.call_outlined), label: 'Calls'),
+          NavigationDestination(icon: Icon(Icons.photo_library_outlined), label: 'Gallery'),
           NavigationDestination(icon: Icon(Icons.lock_outline), label: 'Privacy'),
         ],
       ),

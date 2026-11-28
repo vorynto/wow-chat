@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
 import '../supabase/supabase_service.dart';
 import 'encrypted_db.dart';
 import 'secure_store.dart';
@@ -13,5 +16,11 @@ class WipeService {
     } catch (_) {}
     await EncryptedDb.wipe();
     await SecureStore.instance.wipe();
+    // Delete the hidden gallery's encrypted files.
+    try {
+      final base = await getApplicationDocumentsDirectory();
+      final gallery = Directory('${base.path}/gallery');
+      if (await gallery.exists()) await gallery.delete(recursive: true);
+    } catch (_) {}
   }
 }

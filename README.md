@@ -18,6 +18,7 @@ audio/video calls over the internet (so calls never touch — or block — the c
 | Hidden chat app | On modern unrooted Android, Google blocks iconless + stock-dialer-code entry. A decoy app is the approach that works everywhere. | The app ships as **"wow todo"**, a real working to-do list; the chat hides behind it. See `docs/STEALTH.md`. |
 | Open with a secret code | No biometrics/dialer. | Type the secret code into the to-do "Add a task" box → the hidden chat opens. Code is salted-hashed in secure storage; user-changeable. |
 | Screenshot protection | A found phone shouldn't leak chats via screenshots/recents. | `FLAG_SECURE` applied while the chat is open (not on the decoy). |
+| Hidden gallery | Hide photos/videos inside the vault. | Imported media is encrypted (XChaCha20) and stored as ciphertext in app-private storage, keys in the SQLCipher DB; viewed in-app; destroyed by panic wipe. Local-only (not uploaded). |
 | Carrier doesn't detect the call / "I'm on another call" | **Automatic.** Calls are VoIP/WebRTC over data. The carrier never sees a call, the cellular line stays free, incoming regular calls still ring. No evasion needed. | WebRTC + DTLS-SRTP, signaling over Supabase Realtime. |
 | Highly secure, no data leaks | The core of the app. | E2E encryption (libsignal Double Ratchet), ciphertext-only backend, encrypted-at-rest local DB, strict RLS, app-lock, panic wipe. |
 | iOS | Cannot hide the app or register dial codes. | Out of scope for stealth; a normal private iOS client could be added later. |

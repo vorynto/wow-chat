@@ -20,7 +20,7 @@ class EncryptedDb {
     _db = await openDatabase(
       path,
       password: key,
-      version: 2,
+      version: 3,
       onCreate: (db, _) async {
         await db.execute('CREATE TABLE sessions(address TEXT PRIMARY KEY, record BLOB)');
         await db.execute('CREATE TABLE prekeys(id INTEGER PRIMARY KEY, record BLOB)');
@@ -33,15 +33,30 @@ class EncryptedDb {
         await db.execute('CREATE TABLE sender_keys(name TEXT PRIMARY KEY, record BLOB)');
         // Groups to which we've already distributed our sender key.
         await db.execute('CREATE TABLE group_distributed(conversation_id TEXT PRIMARY KEY)');
+        await _createGallery(db);
       },
       onUpgrade: (db, oldV, newV) async {
         if (oldV < 2) {
           await db.execute('CREATE TABLE IF NOT EXISTS sender_keys(name TEXT PRIMARY KEY, record BLOB)');
           await db.execute('CREATE TABLE IF NOT EXISTS group_distributed(conversation_id TEXT PRIMARY KEY)');
         }
+        if (oldV < 3) {
+          await _createGallery(db);
+        }
       },
     );
     return _db!;
+  }
+
+  // Hidden gallery: one row per imported item. The ciphertext file lives at `path`; the
+  // per-file key is in `keymat`. Both the DB (SQLCipher) and the files sit in app-private
+  // storage, so nothing is readable without the Keystore-held DB key.
+  static Future<void> _createGallery(Database db) async {
+    await db.execute(
+      'CREATE TABLE gallery_items('
+      'id TEXT PRIMARY KEY, path TEXT, name TEXT, type TEXT, keymat TEXT, '
+      'size INTEGER, created_at TEXT)',
+    );
   }
 
   /// Panic wipe: delete the encrypted database file entirely.
