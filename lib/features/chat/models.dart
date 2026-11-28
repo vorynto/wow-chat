@@ -1,4 +1,5 @@
 // Plain data models for conversations and (decrypted) messages.
+import 'message_content.dart';
 
 class Conversation {
   const Conversation({
@@ -22,6 +23,7 @@ class Conversation {
 }
 
 /// A message after local decryption. `text` is null until decrypted (or if decryption fails).
+/// `content` carries the structured 1:1 payload (kind, sticker, media meta, reply reference).
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -32,6 +34,7 @@ class ChatMessage {
     this.mediaPath,
     this.expiresAt,
     this.decryptFailed = false,
+    this.content,
   });
 
   final String id;
@@ -42,4 +45,5 @@ class ChatMessage {
   final String? mediaPath;
   final DateTime? expiresAt;
   final bool decryptFailed;
+  final MessageContent? content;
 }

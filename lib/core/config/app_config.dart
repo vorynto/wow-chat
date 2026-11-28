@@ -16,6 +16,11 @@ class AppConfig {
   /// TURN/STUN for WebRTC NAT traversal.
   static const iceServers = String.fromEnvironment('ICE_SERVERS'); // JSON array
 
+  /// Giphy API key for GIF search. If empty, the GIF picker is disabled. Note: GIF search
+  /// queries Giphy directly (metadata leaves the device); the chosen GIF is then downloaded
+  /// and sent end-to-end encrypted like any other media.
+  static const giphyApiKey = String.fromEnvironment('GIPHY_API_KEY');
+
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,6 +5,7 @@ import '../../core/crypto/crypto_engine.dart';
 import '../../core/crypto/e2e_service.dart';
 import '../../core/supabase/supabase_service.dart';
 import 'local_message_cache.dart';
+import 'message_content.dart';
 import 'models.dart';
 
 /// Sends and receives end-to-end encrypted messages.
@@ -71,32 +71,69 @@ class ChatRepository {
     return convId;
   }
 
-  /// Encrypt and send a text message to the other party of a 1:1 conversation.
-  Future<void> sendText({
+  /// Core send: encrypt a structured [content] envelope and insert the message.
+  Future<void> _send({
     required String conversationId,
     required String otherUserId,
     required String otherDeviceId,
-    required String text,
+    required MessageContent content,
+    String? mediaPath,
     int? ttlSec,
   }) async {
     await _ensureCrypto();
     final me = _supabase.currentUser!.id;
     final tenantId = await _supabase.currentTenantId();
 
+    final body = content.encode();
     final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
-    final envelope = await _crypto.e2e.encryptText(address, text);
+    final envelope = await _crypto.e2e.encryptText(address, body);
 
     final inserted = await _db.from('messages').insert({
       'tenant_id': tenantId,
       'conversation_id': conversationId,
       'sender_id': me,
       'body_enc': envelope,
+      if (mediaPath != null) 'media_path': mediaPath,
       'expires_at': ttlSec == null || ttlSec == 0
           ? null
           : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
     }).select('id').single();
-    await _cache.put(inserted['id'] as String, text);
+    await _cache.put(inserted['id'] as String, body);
   }
+
+  /// Send a text message (optionally quoting another message).
+  Future<void> sendText({
+    required String conversationId,
+    required String otherUserId,
+    required String otherDeviceId,
+    required String text,
+    ReplyRef? replyTo,
+    int? ttlSec,
+  }) =>
+      _send(
+        conversationId: conversationId,
+        otherUserId: otherUserId,
+        otherDeviceId: otherDeviceId,
+        content: MessageContent(kind: 'text', text: text, replyTo: replyTo),
+        ttlSec: ttlSec,
+      );
+
+  /// Send a sticker (an emoji glyph rendered large), optionally quoting another message.
+  Future<void> sendSticker({
+    required String conversationId,
+    required String otherUserId,
+    required String otherDeviceId,
+    required String sticker,
+    ReplyRef? replyTo,
+    int? ttlSec,
+  }) =>
+      _send(
+        conversationId: conversationId,
+        otherUserId: otherUserId,
+        otherDeviceId: otherDeviceId,
+        content: MessageContent(kind: 'sticker', sticker: sticker, replyTo: replyTo),
+        ttlSec: ttlSec,
+      );
 
   static const _mediaBucket = 'media';
 
@@ -111,10 +148,10 @@ class ChatRepository {
     required String mimeType,
     required Uint8List bytes,
     String caption = '',
+    ReplyRef? replyTo,
     int? ttlSec,
   }) async {
     await _ensureCrypto();
-    final me = _supabase.currentUser!.id;
     final tenantId = await _supabase.currentTenantId();
 
     final (cipher, keyMaterial) = await E2EService.encryptMedia(bytes);
@@ -126,40 +163,35 @@ class ChatRepository {
           fileOptions: const FileOptions(contentType: 'application/octet-stream'),
         );
 
-    final bodyPlain = jsonEncode({
-      'kind': 'media',
-      'name': fileName,
-      'type': mimeType,
-      'size': bytes.length,
-      'key': keyMaterial,
-      'caption': caption,
-    });
-    final address = await _crypto.sessions.ensureSession(otherUserId, otherDeviceId);
-    final envelope = await _crypto.e2e.encryptText(address, bodyPlain);
-
-    final inserted = await _db.from('messages').insert({
-      'tenant_id': tenantId,
-      'conversation_id': conversationId,
-      'sender_id': me,
-      'body_enc': envelope,
-      'media_path': objectPath,
-      'expires_at': ttlSec == null || ttlSec == 0
-          ? null
-          : DateTime.now().toUtc().add(Duration(seconds: ttlSec)).toIso8601String(),
-    }).select('id').single();
-    await _cache.put(inserted['id'] as String, bodyPlain);
+    await _send(
+      conversationId: conversationId,
+      otherUserId: otherUserId,
+      otherDeviceId: otherDeviceId,
+      mediaPath: objectPath,
+      ttlSec: ttlSec,
+      content: MessageContent(
+        kind: 'media',
+        mediaName: fileName,
+        mediaType: mimeType,
+        mediaKey: keyMaterial,
+        caption: caption,
+        replyTo: replyTo,
+      ),
+    );
   }
 
-  /// Download a media message's ciphertext from Storage and decrypt it. [decryptedBody] is the
-  /// JSON string from ChatMessage.text (contains the key + filename).
-  Future<(String fileName, String mimeType, List<int> bytes)> downloadMedia({
-    required String mediaPath,
-    required String decryptedBody,
-  }) async {
-    final meta = jsonDecode(decryptedBody) as Map<String, dynamic>;
+  /// Download + decrypt a media message's bytes. Cached in memory by message id so inline
+  /// previews (images/GIFs) don't re-download on every stream emission.
+  final Map<String, Uint8List> _mediaBytesCache = {};
+
+  Future<Uint8List> mediaBytes(String messageId, String mediaPath, String keyMaterial) async {
+    final cached = _mediaBytesCache[messageId];
+    if (cached != null) return cached;
     final cipher = await _db.storage.from(_mediaBucket).download(mediaPath);
-    final plain = await E2EService.decryptMedia(cipher, meta['key'] as String);
-    return (meta['name'] as String, meta['type'] as String? ?? 'application/octet-stream', plain);
+    final plain = await E2EService.decryptMedia(cipher, keyMaterial);
+    final out = Uint8List.fromList(plain);
+    _mediaBytesCache[messageId] = out;
+    return out;
   }
 
   /// Live stream of messages for a conversation (Supabase Realtime), decrypted locally.
@@ -201,12 +233,14 @@ class ChatRepository {
                 failed = true;
               }
             }
+            final content = text == null ? null : MessageContent.parse(text);
             out.add(ChatMessage(
-              id: r['id'] as String,
+              id: id,
               conversationId: conversationId,
               senderId: senderId,
               createdAt: DateTime.parse(r['created_at'] as String),
-              text: text,
+              text: content?.text,
+              content: content,
               mediaPath: r['media_path'] as String?,
               expiresAt: r['expires_at'] == null ? null : DateTime.parse(r['expires_at'] as String),
               decryptFailed: failed,
