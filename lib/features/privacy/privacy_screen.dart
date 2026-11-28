@@ -60,6 +60,48 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
     }
   }
 
+  Future<void> _changePanicCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Panic code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Entering this code in the To-Do app silently and permanently wipes all local '
+              'keys, messages and session. There is no undo. Leave blank to disable.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              obscureText: true,
+              keyboardType: TextInputType.visiblePassword,
+              decoration: const InputDecoration(hintText: 'Panic code (blank = off)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (code != null) {
+      await AccessCodeService.instance.setPanicCode(code);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(code.isEmpty ? 'Panic code disabled' : 'Panic code set')),
+        );
+      }
+    }
+  }
+
   Future<void> _update(PrivacySettings next) async {
     setState(() => _s = next);
     await ref.read(privacyRepositoryProvider).save(next);
@@ -139,6 +181,12 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   title: const Text('Change secret code'),
                   subtitle: const Text('The code typed in the To-Do app to open chat'),
                   onTap: _changeCode,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever),
+                  title: const Text('Set panic code'),
+                  subtitle: const Text('Typing it in the To-Do app silently wipes everything'),
+                  onTap: _changePanicCode,
                 ),
                 ListTile(
                   leading: const Icon(Icons.lock),

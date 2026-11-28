@@ -178,10 +178,16 @@ class ChatRepository {
           await _ensureCrypto();
           final me = _supabase.currentUser!.id;
           final out = <ChatMessage>[];
+          final now = DateTime.now().toUtc();
           for (final r in rows) {
             final id = r['id'] as String;
             final senderId = r['sender_id'] as String;
             var failed = false;
+
+            // Hide disappearing messages whose TTL has passed, even if the server cleanup job
+            // hasn't deleted them yet.
+            final exp = r['expires_at'] == null ? null : DateTime.parse(r['expires_at'] as String);
+            if (exp != null && exp.toUtc().isBefore(now)) continue;
 
             // Read decrypted text from the local cache first; a Double-Ratchet message can be
             // decrypted only once, so we never re-decrypt.

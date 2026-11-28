@@ -63,6 +63,32 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`. Install with `adb insta
 - Inside chat: **Privacy → Lock now** returns to the to-do screen; **Change secret code** sets
   a new one.
 
+## 7. Production release signing (optional)
+The CI release APK is signed with the debug key so it installs for testing. For a real
+release, create a keystore and wire it up:
+```bash
+keytool -genkey -v -keystore ~/wowchat.jks -keyalg RSA -keysize 2048 -validity 10000 -alias wowchat
+```
+Add `android/key.properties` (git-ignored) and a `signingConfigs.release` in
+`android/app/build.gradle`, then build with `flutter build apk --release`. In CI, store the
+keystore + passwords as repository secrets and decode them in a step before the release build.
+
+## 8. iOS (normal, non-hidden client)
+iOS **cannot** hide the app icon or disguise itself, so on iOS wow-chat is a normal messenger:
+the "wow todo" screen + secret-code gate still work as an in-app lock, but the app is visible
+on the Home Screen and subject to App Store review (which forbids the Android-style stealth).
+To build iOS (needs macOS + Xcode):
+```bash
+flutter create --platforms=ios .
+```
+Add these keys to `ios/Runner/Info.plist` (required by WebRTC calls + file picking):
+```xml
+<key>NSCameraUsageDescription</key><string>Video calls</string>
+<key>NSMicrophoneUsageDescription</key><string>Voice and video calls</string>
+<key>NSPhotoLibraryUsageDescription</key><string>Attach photos and files</string>
+```
+Then `flutter build ipa`. Everything except the hiding/stealth is identical to Android.
+
 ## Known limits
 - No Google Play distribution — a disguised app with hidden functionality violates Play policy.
   Sideload (APK) or private MDM only.

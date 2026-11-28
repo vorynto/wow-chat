@@ -76,3 +76,19 @@ jobs:
           name: wow-todo-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: warn
+
+      # Release APK. With no real keystore configured the Flutter template signs release with
+      # the debug key, so it installs for testing. For production, add a keystore + key.properties
+      # (see docs/BUILD.md) and CI secrets.
+      - name: Build release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL=https://example.supabase.co \
+            --dart-define=SUPABASE_ANON_KEY=ci-placeholder \
+            --dart-define=ACCESS_CODE=4729
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wow-todo-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: warn

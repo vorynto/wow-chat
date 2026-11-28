@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/storage/access_code.dart';
+import '../../core/storage/wipe_service.dart';
 import 'todo_store.dart';
 import 'vault_shell.dart';
 
@@ -33,6 +34,18 @@ class _TodoScreenState extends State<TodoScreen> {
   Future<void> _submit() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
+
+    // Panic code: silently wipe everything local, then behave exactly like a normal task add
+    // so there is no visible signal that anything happened.
+    if (await AccessCodeService.instance.verifyPanic(text)) {
+      await WipeService.wipeEverything();
+      setState(() {
+        _items.add(TodoItem(id: DateTime.now().microsecondsSinceEpoch.toString(), title: text));
+        _input.clear();
+      });
+      await _store.save(_items);
+      return;
+    }
 
     // Secret unlock: if the entered text is the access code, open the hidden chat and do NOT
     // store it as a task.
